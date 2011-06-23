@@ -2,11 +2,38 @@
 
 rex-augeas is a (R)?ex module to manage configuration files with libaugeas.
 
+=head2 Dependencies
+
+=over 4
+
+=item L<Config::Augeas>
+
+=item L<http://augeas.net/>
+
+=back
+
 =head2 Usage
 
 In your Rexfile use the following commands.
 
  use Rex::Augeas;
 
-
+ task "example", sub {
+    
+   augeas modify => "/etc/hosts",
+      "/7/ipaddr" => "10.211.55.6",
+      "/7/canonical" => "blah01";
+     
+   augeas remove => "/etc/hosts", "/2";
+   
+   augeas dump => "/etc/hosts";
+   
+   augeas insert => "/etc/hosts",
+            after => "/7",
+            ipaddr => "192.168.2.23",
+            canonical => "mango.linoratix.com",
+            alias => "mango";
+     
+ };
+ 
 
