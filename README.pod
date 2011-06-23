@@ -1,0 +1,12 @@
+=pod
+
+rex-augeas is a (R)?ex module to manage configuration files with libaugeas.
+
+=head2 Usage
+
+In your Rexfile use the following commands.
+
+ use Rex::Augeas;
+
+
+
