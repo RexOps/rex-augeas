@@ -56,6 +56,8 @@ use IO::String;
 
 =item augeas($action, $file, @options)
 
+It returns 1 on success and 0 on failure.
+
 Actions:
 
 =over 4
