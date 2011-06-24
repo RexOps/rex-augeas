@@ -44,7 +44,6 @@ find %{buildroot} -name .packlist -exec %{__rm} {} \;
 %defattr(-,root,root, 0755)
 %doc META.yml 
 %doc %{_mandir}/*
-%{_bindir}/*
 %{perl_vendorlib}/*
 
 %changelog
