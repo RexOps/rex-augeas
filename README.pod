@@ -27,8 +27,12 @@ In your Rexfile use the following commands.
    augeas remove => "/etc/hosts", "/2";
    
    augeas dump => "/etc/hosts";
+
+   my $val = augeas exists => "/etc/hosts",
+               "*/ipaddr" => "127.0.0.1";
    
    augeas insert => "/etc/hosts",
+            label => "01",
             after => "/7",
             ipaddr => "192.168.2.23",
             canonical => "mango.linoratix.com",
