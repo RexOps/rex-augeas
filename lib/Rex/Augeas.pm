@@ -17,7 +17,11 @@ use base qw(Exporter);
 use vars qw(@EXPORT);
 
 use Rex::Logger;
+use Rex::Commands;
 use Rex::Commands::Run;
+use Rex::Commands::Fs;
+use Rex::Commands::File;
+
 use Config::Augeas;
 use IO::String;
 
@@ -81,21 +85,55 @@ sub augeas {
       $ret = $aug->save;
    }
    elsif($action eq "insert") {
+      my $opts = { @options };
+      my $label = $opts->{"label"};
+      delete $opts->{"label"};
+
       if($is_ssh) {
+         my $position = (exists $opts->{"before"}?"before":"after");
+         unless(exists $opts->{$position}) {
+            Rex::Logger::info("Error inserting key. You have to specify before or after.");
+            return 0;
+         }
+         
+         delete $opts->{$position};
+
+         my $aug_commands = "ins $label $position " . $opts->{$position} . "\n";
+
+         for(my $i=0; $i < @options; $i+=2) {
+            my $key = $options[$i];
+            my $val = $options[$i+1];
+            next if($key eq "after" or $key eq "before" or $key eq "label");
+
+            my $_key = "/files$file/$label/$key";
+            Rex::Logger::debug("Setting $_key => $val");
+
+            $aug_commands .= "set $_key $val\n";
+         }
+
+         $aug_commands .= "save\n";
+
+         my $tmp_file = "/tmp/" . get_random(12, 'a'..'z', 0..9) . '.tmp';
+         my $fh = file_write $tmp_file;
+         $fh->write($aug_commands);
+         $fh->close;
+
+         run "cat $tmp_file | augtool";
+
+         $ret = 0;
+         if($? == 0) {
+            $ret = 1;
+         }
+
+         unlink "$tmp_file";
       }
       else {
-         my $opts = { @options };
-         my @lines = run "augtool print /files$file";
-
-         my $new_path = "/files$file/" . scalar(@lines);
-         Rex::Logger::debug("New number: " . scalar(@lines));
-
          if(exists $opts->{"before"}) {
-            $aug->insert(scalar(@lines), before => "/files$file" . $opts->{"before"});
+            $aug->insert($label, before => "/files$file" . $opts->{"before"});
             delete $opts->{"before"};
          }
          elsif(exists $opts->{"after"}) {
-            my $t = $aug->insert(scalar(@lines), after => "/files$file" . $opts->{"after"});
+            my $t = $aug->insert($label, after => "/files$file" . $opts->{"after"});
             delete $opts->{"after"};
          }
          else {
@@ -107,11 +145,9 @@ sub augeas {
             my $key = $options[$i];
             my $val = $options[$i+1];
 
-            if($key eq "after" || $key eq "before") {
-               next;
-            }
-            
-            my $_key = "/files$file/" . scalar(@lines) . "/$key";
+            next if($key eq "after" or $key eq "before" or $key eq "label");
+
+            my $_key = "/files$file/$label/$key";
             Rex::Logger::debug("Setting $_key => $val");
 
             $aug->set($_key, $val);
@@ -132,11 +168,50 @@ sub augeas {
       }
       $ret = 0;
    }
+   elsif($action eq "exists") {
+      my $aug_key = "/files$file/" . $options[0];
+      my $val = $options[1] || "";
+
+      if($is_ssh) {
+         my @paths = grep { s/\s=[^=]+$// } run "echo 'match $aug_key' | augtool";
+
+         if($val) {
+            for my $k (@paths) {
+               my @ret = grep { s/^[^=]+=\s// } run "echo 'get $k' | augtool";
+               
+               if($ret[0] eq $val) {
+                  return $k;
+               }
+            }
+         }
+         else {
+            return @paths;
+         }
+
+         $ret = undef;
+      }
+      else {
+         my @paths = $aug->match($aug_key);
+
+         if($val) {
+            for my $k (@paths) {
+               if($aug->get($k) eq $val) {
+                  return $k;
+               }
+            }
+         }
+         else {
+            return @paths;
+         }
+
+         $ret = undef;
+      }
+   }
    else {
       Rex::Logger::info("Unknown augeas action.");
    }
 
-   Rex::Logger::debug("Augeas Returned: $ret");
+   Rex::Logger::debug("Augeas Returned: $ret") if $ret;
 
    return $ret;
 }
