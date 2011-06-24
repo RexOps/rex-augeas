@@ -1,0 +1,5 @@
+rex-augeas (0.1.0) unstable; urgency=low
+  * initial package
+
+ -- Jan Gehring <jan.gehring@gmail.com>  Sat, 25 Jun 2011 00:30:00 +0200
+

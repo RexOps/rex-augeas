@@ -4,6 +4,33 @@
 # vim: set ts=3 sw=3 tw=0:
 # vim: set expandtab:
 
+=head1 NAME
+
+Rex::Augeas - An augeas module for (R)?ex
+
+=head1 DESCRIPTION
+
+This is a simple module to manipulate configuration files with the help of augeas.
+
+=head1 SYNOPSIS
+
+ my $k = augeas exists => "/etc/hosts",
+                   "*/ipaddr" => "127.0.0.1";
+ augeas insert => "/etc/hosts",
+           label => "01",
+           after => "/7",
+           ipaddr => "192.168.2.23",
+           canonical => "test";
+ 
+ augeas dump => "/etc/hosts";
+
+
+=head1 EXPORTED FUNCTIONS
+
+=over 4
+
+=cut
+
 package Rex::Augeas;
 
 use strict;
@@ -27,6 +54,14 @@ use IO::String;
 
 @EXPORT = qw(augeas);
 
+=item augeas($action, $file, @options)
+
+Actions:
+
+=over 4
+
+=cut
+
 sub augeas {
    my ($action, $file, @options) = @_;
    my $ret;
@@ -35,6 +70,16 @@ sub augeas {
    my $aug = Config::Augeas->new;
 
    my $is_ssh = Rex::is_ssh();
+
+=item modify
+
+This modifies the keys given in @options in $file.
+
+ augeas modify => "/etc/hosts",
+           "/7/ipaddr"    => "127.0.0.2",
+           "/7/canonical" => "test01";
+
+=cut
 
    if($action eq "modify") {
       my $config_option = { @options };
@@ -61,6 +106,15 @@ sub augeas {
 
       $ret = $aug->save;
    }
+
+=item remove
+
+Remove an entry.
+
+ augeas remove => "/etc/hosts", "/2";
+
+=cut
+
    elsif($action eq "remove") {
       for my $key (@options) {
          my $aug_key = "/files$file$key";
@@ -84,6 +138,19 @@ sub augeas {
 
       $ret = $aug->save;
    }
+
+=item insert
+
+Insert an item into the file. Here, the order of the options is important. If the order is wrong it won't save your changes.
+
+ augeas insert => "/etc/hosts",
+           label  => "01",
+           after  => "/7",
+           ipaddr => "192.168.2.23",
+           alias  => "test02";
+
+=cut
+
    elsif($action eq "insert") {
       my $opts = { @options };
       my $label = $opts->{"label"};
@@ -156,6 +223,15 @@ sub augeas {
          $ret = $aug->save();
       }
    }
+
+=item dump
+
+Dump the contents of a file to STDOUT.
+
+ augeas dump => "/etc/hosts";
+
+=cut
+
    elsif($action eq "dump") {
       my $aug_key = "/files$file";
 
@@ -168,6 +244,19 @@ sub augeas {
       }
       $ret = 0;
    }
+
+=item exists
+
+Check if an item exists.
+
+ my $exists = augeas exists => "/etc/hosts",
+                        "*/ipaddr" => "127.0.0.1";
+ if($exists) {
+     say "127.0.0.1 exists!";
+ }
+
+=cut
+
    elsif($action eq "exists") {
       my $aug_key = "/files$file/" . $options[0];
       my $val = $options[1] || "";
@@ -215,6 +304,10 @@ sub augeas {
 
    return $ret;
 }
+
+=back
+
+=cut
 
 
 1;
