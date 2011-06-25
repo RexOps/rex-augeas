@@ -20,18 +20,17 @@ In your Rexfile use the following commands.
 
  task "example", sub {
     
-   augeas modify => "/etc/hosts",
-      "/7/ipaddr" => "10.211.55.6",
-      "/7/canonical" => "blah01";
+   augeas modify => 
+      "/files/etc/hosts/7/ipaddr"    => "10.211.55.6",
+      "/files/etc/hosts/7/canonical" => "blah01";
      
-   augeas remove => "/etc/hosts", "/2";
+   augeas remove => "/files/etc/hosts/2";
    
-   augeas dump => "/etc/hosts";
+   augeas dump => "/files/etc/hosts";
 
-   my $val = augeas exists => "/etc/hosts",
-               "*/ipaddr" => "127.0.0.1";
+   my $val = augeas exists => "/files/etc/hosts/*/ipaddr", "127.0.0.1";
    
-   augeas insert => "/etc/hosts",
+   augeas insert => "/files/etc/hosts",
             label => "01",
             after => "/7",
             ipaddr => "192.168.2.23",

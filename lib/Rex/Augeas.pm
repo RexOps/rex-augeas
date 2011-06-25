@@ -14,15 +14,15 @@ This is a simple module to manipulate configuration files with the help of augea
 
 =head1 SYNOPSIS
 
- my $k = augeas exists => "/etc/hosts",
-                   "*/ipaddr" => "127.0.0.1";
- augeas insert => "/etc/hosts",
+ my $k = augeas exists => "/files/etc/hosts/*/ipaddr", "127.0.0.1";
+    
+ augeas insert => "/files/etc/hosts",
            label => "01",
            after => "/7",
            ipaddr => "192.168.2.23",
            canonical => "test";
- 
- augeas dump => "/etc/hosts";
+   
+ augeas dump => "/files/etc/hosts";
 
 
 =head1 EXPORTED FUNCTIONS
@@ -38,7 +38,7 @@ use warnings;
 
 require Exporter;
 
-our $VERSION = "0.1.0";
+our $VERSION = "0.2.0";
 
 use base qw(Exporter);
 use vars qw(@EXPORT);
@@ -54,7 +54,7 @@ use IO::String;
 
 @EXPORT = qw(augeas);
 
-=item augeas($action, $file, @options)
+=item augeas($action, @options)
 
 It returns 1 on success and 0 on failure.
 
@@ -65,7 +65,7 @@ Actions:
 =cut
 
 sub augeas {
-   my ($action, $file, @options) = @_;
+   my ($action, @options) = @_;
    my $ret;
 
    Rex::Logger::debug("Creating Config::Augeas Object");
@@ -77,9 +77,9 @@ sub augeas {
 
 This modifies the keys given in @options in $file.
 
- augeas modify => "/etc/hosts",
-           "/7/ipaddr"    => "127.0.0.2",
-           "/7/canonical" => "test01";
+ augeas modify =>
+           "/files/etc/hosts/7/ipaddr"    => "127.0.0.2",
+           "/files/etc/hosts/7/canonical" => "test01";
 
 =cut
 
@@ -87,7 +87,7 @@ This modifies the keys given in @options in $file.
       my $config_option = { @options };
 
       for my $key (keys %{$config_option}) {
-         my $aug_key = "/files$file$key";
+         my $aug_key = $key;
          Rex::Logger::debug("modifying $aug_key -> " . $config_option->{$key});
 
          my $_r;
@@ -113,13 +113,13 @@ This modifies the keys given in @options in $file.
 
 Remove an entry.
 
- augeas remove => "/etc/hosts", "/2";
+ augeas remove => "/files/etc/hosts/2";
 
 =cut
 
    elsif($action eq "remove") {
       for my $key (@options) {
-         my $aug_key = "/files$file$key";
+         my $aug_key = $key;
          Rex::Logger::debug("deleting $aug_key");
 
          my $_r;
@@ -145,7 +145,7 @@ Remove an entry.
 
 Insert an item into the file. Here, the order of the options is important. If the order is wrong it won't save your changes.
 
- augeas insert => "/etc/hosts",
+ augeas insert => "/files/etc/hosts",
            label  => "01",
            after  => "/7",
            ipaddr => "192.168.2.23",
@@ -154,6 +154,7 @@ Insert an item into the file. Here, the order of the options is important. If th
 =cut
 
    elsif($action eq "insert") {
+      my $file = shift @options;
       my $opts = { @options };
       my $label = $opts->{"label"};
       delete $opts->{"label"};
@@ -174,7 +175,7 @@ Insert an item into the file. Here, the order of the options is important. If th
             my $val = $options[$i+1];
             next if($key eq "after" or $key eq "before" or $key eq "label");
 
-            my $_key = "/files$file/$label/$key";
+            my $_key = "$file/$label/$key";
             Rex::Logger::debug("Setting $_key => $val");
 
             $aug_commands .= "set $_key $val\n";
@@ -198,11 +199,11 @@ Insert an item into the file. Here, the order of the options is important. If th
       }
       else {
          if(exists $opts->{"before"}) {
-            $aug->insert($label, before => "/files$file" . $opts->{"before"});
+            $aug->insert($label, before => "$file" . $opts->{"before"});
             delete $opts->{"before"};
          }
          elsif(exists $opts->{"after"}) {
-            my $t = $aug->insert($label, after => "/files$file" . $opts->{"after"});
+            my $t = $aug->insert($label, after => "$file" . $opts->{"after"});
             delete $opts->{"after"};
          }
          else {
@@ -216,7 +217,7 @@ Insert an item into the file. Here, the order of the options is important. If th
 
             next if($key eq "after" or $key eq "before" or $key eq "label");
 
-            my $_key = "/files$file/$label/$key";
+            my $_key = "$file/$label/$key";
             Rex::Logger::debug("Setting $_key => $val");
 
             $aug->set($_key, $val);
@@ -230,12 +231,13 @@ Insert an item into the file. Here, the order of the options is important. If th
 
 Dump the contents of a file to STDOUT.
 
- augeas dump => "/etc/hosts";
+ augeas dump => "/files/etc/hosts";
 
 =cut
 
    elsif($action eq "dump") {
-      my $aug_key = "/files$file";
+      my $file = shift @options;
+      my $aug_key = $file;
 
       if($is_ssh) {
          my @list = run "augtool print $aug_key";
@@ -251,8 +253,7 @@ Dump the contents of a file to STDOUT.
 
 Check if an item exists.
 
- my $exists = augeas exists => "/etc/hosts",
-                        "*/ipaddr" => "127.0.0.1";
+ my $exists = augeas exists => "/files/etc/hosts/*/ipaddr" => "127.0.0.1";
  if($exists) {
      say "127.0.0.1 exists!";
  }
@@ -260,8 +261,10 @@ Check if an item exists.
 =cut
 
    elsif($action eq "exists") {
-      my $aug_key = "/files$file/" . $options[0];
-      my $val = $options[1] || "";
+      my $file = shift @options;
+
+      my $aug_key = $file;
+      my $val = $options[0] || "";
 
       if($is_ssh) {
          my @paths = grep { s/\s=[^=]+$// } run "echo 'match $aug_key' | augtool";
@@ -298,6 +301,27 @@ Check if an item exists.
          $ret = undef;
       }
    }
+
+=item get
+
+Returns the value of the given item.
+
+ my $val = augeas get => "/files/etc/hosts/1/ipaddr";
+
+=cut
+
+   elsif($action eq "get") {
+      my $file = shift @options;
+
+      if($is_ssh) {
+         my @lines = grep { s/^[^=]+=\s//; } run "echo 'get $file' | augtool";
+         return $lines[0];
+      }
+      else {
+         return $aug->get($file);
+      }
+   }
+
    else {
       Rex::Logger::info("Unknown augeas action.");
    }

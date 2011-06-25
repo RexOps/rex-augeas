@@ -1,3 +1,8 @@
+rex-augeas (0.2.0) unstable; urgency=low
+  * changed the api a little
+
+ -- Jan Gehring <jan.gehring@gmail.com>  Sat, 25 Jun 2011 10:00:00 +0200
+
 rex-augeas (0.1.0) unstable; urgency=low
   * initial package
 

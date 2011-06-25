@@ -1,2 +1,4 @@
 lib/Rex/Augeas.pm
 Makefile.PL
+ChangeLog
+README
