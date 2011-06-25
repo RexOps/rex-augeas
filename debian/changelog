@@ -1,5 +1,6 @@
 rex-augeas (0.2.0) unstable; urgency=low
-  * changed the api a little
+  * changed the api. now you have to name the full augeas path.
+  * added get action.
 
  -- Jan Gehring <jan.gehring@gmail.com>  Sat, 25 Jun 2011 10:00:00 +0200
 

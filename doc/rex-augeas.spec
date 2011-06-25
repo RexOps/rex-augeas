@@ -5,11 +5,11 @@
 
 Summary: Rex-Augeas is an augeas Module for Rex
 Name: rex-augeas
-Version: 0.1.0
+Version: 0.2.0
 Release: 1
 License: Artistic
 Group: Utilities/System
-Source: http://search.cpan.org/CPAN/authors/id/J/JF/JFRIED/Rex-Augeas-0.1.0.tar.gz
+Source: http://search.cpan.org/CPAN/authors/id/J/JF/JFRIED/Rex-Augeas-0.2.0.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
 BuildRequires: perl-Net-SSH2
@@ -47,6 +47,10 @@ find %{buildroot} -name .packlist -exec %{__rm} {} \;
 %{perl_vendorlib}/*
 
 %changelog
+
+* Sat Jun 25 2011 Jan Gehring <jan.gehring at, gmail.com> 0.2.0-1
+- changed the api. now you have to name the full augeas path.
+- added get action.
 
 * Sat Jun 25 2011 Jan Gehring <jan.gehring at, gmail.com> 0.1.0-1
 - inital release

@@ -8,5 +8,5 @@ Homepage: https://github.com/krimdomu/rex-augeas
 
 Package: rex-augeas
 Architecture: all
-Depends: perl (>= 5.10.0), libnet-ssh2-perl (>= 0.33), rex (>= 0.7.0), libconfig-augeas-perl
+Depends: perl (>= 5.10.0), libnet-ssh2-perl (>= 0.33), rex (>= 0.7.0), libconfig-augeas-perl, libio-string-perl
 Description: Augeas Module for (R)?ex
