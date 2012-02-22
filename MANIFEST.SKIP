@@ -2,7 +2,6 @@
 .gitignore
 ^debian\/
 README.pod
-MANIFEST
 \..*sw.*
 .git
 blib
@@ -11,3 +10,9 @@ pm_toblib
 \.tar\.gz
 ^.*-stamp$
 ^doc\/
+.*\.tmp$
+^test.*\..*
+.*\.old$
+^\.DS_*
+\.sh$
+MANIFEST\..*
