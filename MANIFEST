@@ -2,4 +2,3 @@ ChangeLog
 lib/Rex/Augeas.pm
 Makefile.PL
 MANIFEST			This list of files
-README
