@@ -166,9 +166,10 @@ Insert an item into the file. Here, the order of the options is important. If th
             return 0;
          }
          
-         delete $opts->{$position};
 
          my $aug_commands = "ins $label $position " . $opts->{$position} . "\n";
+
+         delete $opts->{$position};
 
          for(my $i=0; $i < @options; $i+=2) {
             my $key = $options[$i];
