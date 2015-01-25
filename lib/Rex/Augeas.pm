@@ -24,6 +24,11 @@ This is a simple module to manipulate configuration files with the help of augea
    
  augeas dump => "/files/etc/hosts";
 
+ augeas modify =>
+    "/files/etc/ssh/sshd_config/PermitRootLogin" => "without-password",
+    on_change => sub {
+       service ssh => "restart";
+    };
 
 =head1 EXPORTED FUNCTIONS
 
@@ -73,72 +78,103 @@ sub augeas {
 
    my $is_ssh = Rex::is_ssh();
 
+   my $on_change; # Any code to run on change
+   my $changed; # Whether any changes have taken place
+
 =item modify
 
 This modifies the keys given in @options in $file.
 
  augeas modify =>
            "/files/etc/hosts/7/ipaddr"    => "127.0.0.2",
-           "/files/etc/hosts/7/canonical" => "test01";
+           "/files/etc/hosts/7/canonical" => "test01",
+           on_change                      => sub { say "I changed!" };
 
 =cut
 
    if($action eq "modify") {
       my $config_option = { @options };
 
+      # Code to run on a change being made
+      $on_change = delete $config_option->{on_change}
+         if ref $config_option->{on_change} eq 'CODE';
+
+      $ret = 1; # Assume success
       for my $key (keys %{$config_option}) {
          my $aug_key = $key;
          Rex::Logger::debug("modifying $aug_key -> " . $config_option->{$key});
 
          my $_r;
          if($is_ssh) {
-            run 'echo "set ' . $aug_key . ' ' . $config_option->{$key} . '" | augtool -s';
+            my $result = run 'echo "set ' . $aug_key . ' ' . $config_option->{$key} . '" | augtool -s';
+            $changed = 1 if $result =~ /Saved/;
             if($? == 0) {
                $_r = 1;
             }
             else {
                $_r = 0;
+               $ret = 0; # Return zero on any failures
             }
          }
          else {
             $_r = $aug->set($aug_key, $config_option->{$key});
+            # Final return value obtained during final save
          }
          Rex::Logger::debug("Augeas set status: $_r");
       }
 
-      $ret = $aug->save;
+      unless ($is_ssh) {
+         $ret = $aug->save;
+         $changed = 1 if $ret && $aug->get('/augeas/events/saved'); # Any files changed?
+      }
    }
 
 =item remove
 
 Remove an entry.
 
- augeas remove => "/files/etc/hosts/2";
+ augeas remove    => "/files/etc/hosts/2",
+        on_change => sub { say "I changed!" };
 
 =cut
 
    elsif($action eq "remove") {
+
+      # Code to run on a change being made
+      if ($options[-2] eq 'on_change' && ref $options[-1] eq 'CODE') {
+         $on_change = pop @options;
+         pop @options;
+      }
+
+      $ret = 1; # Assume success
       for my $key (@options) {
          my $aug_key = $key;
          Rex::Logger::debug("deleting $aug_key");
 
          my $_r;
          if($is_ssh) {
-            run "echo 'rm $aug_key' | augtool -s";
+            my $result = run "echo 'rm $aug_key' | augtool -s";
+            $changed = 1 if $result =~ /Saved/;
             if($? == 0) {
                $_r = 1;
             }
             else {
                $_r = 0;
+               $ret = 0; # Return zero on any failures
             }
          }
          else {
             $_r = $aug->remove($aug_key);
+            # Final return value obtained during final save
          }
          Rex::Logger::debug("Augeas delete status: $_r");
       }
 
-      $ret = $aug->save;
+      unless ($is_ssh) {
+         $ret = $aug->save;
+         $changed = 1 if $ret && $aug->get('/augeas/events/saved'); # Any files changed?
+      }
+
    }
 
 =item insert
@@ -146,18 +182,26 @@ Remove an entry.
 Insert an item into the file. Here, the order of the options is important. If the order is wrong it won't save your changes.
 
  augeas insert => "/files/etc/hosts",
-           label  => "01",
-           after  => "/7",
-           ipaddr => "192.168.2.23",
-           alias  => "test02";
+           label     => "01",
+           after     => "/7",
+           ipaddr    => "192.168.2.23",
+           alias     => "test02",
+           on_change => sub { say "I changed!" };
 
 =cut
 
    elsif($action eq "insert") {
       my $file = shift @options;
       my $opts = { @options };
+
       my $label = $opts->{"label"};
       delete $opts->{"label"};
+
+      # Code to run on a change being made
+      if ($options[-2] eq 'on_change' && ref $options[-1] eq 'CODE') {
+         $on_change = pop @options;
+         pop @options;
+      }
 
       if($is_ssh) {
          my $position = (exists $opts->{"before"}?"before":"after");
@@ -189,7 +233,8 @@ Insert an item into the file. Here, the order of the options is important. If th
          $fh->write($aug_commands);
          $fh->close;
 
-         run "cat $tmp_file | augtool";
+         my $result = run "cat $tmp_file | augtool";
+         $changed = 1 if $result =~ /Saved/;
 
          $ret = 0;
          if($? == 0) {
@@ -225,6 +270,7 @@ Insert an item into the file. Here, the order of the options is important. If th
          }
 
          $ret = $aug->save();
+         $changed = 1 if $ret && $aug->get('/augeas/events/saved'); # Any files changed?
       }
    }
 
@@ -325,6 +371,11 @@ Returns the value of the given item.
 
    else {
       Rex::Logger::info("Unknown augeas action.");
+   }
+
+   if ( $on_change && $changed ) {
+      Rex::Logger::debug("Calling on_change hook of augeas");
+      $on_change->();
    }
 
    Rex::Logger::debug("Augeas Returned: $ret") if $ret;
